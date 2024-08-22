@@ -17,7 +17,7 @@ class Router
         $uri = $this->getUri();
 
         foreach ($this->routes[$method] as $route => $controllerAction) {
-            $routePattern = preg_replace('/\{[^\}]+\}/', '([^/]+)', $route);
+            $routePattern = preg_replace('/\{[^\}]+\}/', '([^/]+)', $route); 
             if (preg_match("#^{$routePattern}$#", $uri, $matches)) {
                 array_shift($matches);
                 list($controller, $action) = explode('@', $controllerAction);
@@ -33,7 +33,17 @@ class Router
     protected function getUri()
     {
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-        return rtrim($uri, '/');
+        
+        // Get the base path from the environment variable
+        $basePath = rtrim($_ENV['BASE_PATH'], '/');
+
+        // Remove the base path from the URI if it exists
+        if ($basePath && strpos($uri, $basePath) === 0) {
+            $uri = substr($uri, strlen($basePath));
+        }
+
+        // Return the cleaned URI
+        return rtrim($uri, '/') ?: '/';
     }
 
     protected function callAction($controller, $action, $params = [])
@@ -47,7 +57,11 @@ class Router
         if (!method_exists($controllerInstance, $action)) {
             throw new \Exception("Method {$action} not found in controller {$controller}.");
         }
-
-        call_user_func_array([$controllerInstance, $action], $params);
+        
+        if (!empty($params)) {
+            call_user_func_array([$controllerInstance, $action], $params);
+        } else {
+            $controllerInstance->$action();
+        }
     }
 }
